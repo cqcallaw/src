@@ -433,7 +433,7 @@ main_dispatch_frontend(int fd, short event, void *bula)
 		case IMSG_CTL_LOG_VERBOSE:
 			if (IMSG_DATA_SIZE(imsg) != sizeof(verbose))
 				fatalx("%s: IMSG_CTL_LOG_VERBOSE wrong length: "
-				    "%lu", __func__, IMSG_DATA_SIZE(imsg));	
+				    "%lu", __func__, IMSG_DATA_SIZE(imsg));
 			memcpy(&verbose, imsg.data, sizeof(verbose));
 			log_setverbose(verbose);
 			break;
@@ -754,6 +754,7 @@ config_new_empty(void)
 	xconf->ra_options.cur_hl = 0;
 	xconf->ra_options.m_flag = 0;
 	xconf->ra_options.o_flag = 0;
+	xconf->ra_options.preference = ND_RA_FLAG_RTPREF_MEDIUM;
 	xconf->ra_options.router_lifetime = 1800;
 	xconf->ra_options.reachable_time = 0;
 	xconf->ra_options.retrans_timer = 0;

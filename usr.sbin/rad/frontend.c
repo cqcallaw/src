@@ -411,7 +411,7 @@ frontend_dispatch_main(int fd, short event, void *bula)
 			    ra_prefix_conf))
 				fatalx("%s: IMSG_RECONF_RA_PREFIX wrong "
 				    "length: %lu", __func__,
-				    IMSG_DATA_SIZE(imsg));	
+				    IMSG_DATA_SIZE(imsg));
 			if ((ra_prefix_conf = malloc(sizeof(struct
 			    ra_prefix_conf))) == NULL)
 				fatal(NULL);
@@ -1023,6 +1023,18 @@ build_packet(struct ra_iface *ra_iface)
 		ra->nd_ra_router_lifetime =
 		    htons(ra_options_conf->router_lifetime);
 	}
+
+	/* add router preference flags */
+	if (ra_options_conf->preference == ND_RA_FLAG_RTPREF_RSV) {
+		fatalx("Invalid router preference found during RA packet construction.");
+	}
+
+	if (ra_options_conf->router_lifetime == 0) {
+		log_debug("Router lifetime set to zero; ignoring router preference per https://tools.ietf.org/html/rfc4191#section-2.2");
+	} else {
+		ra->nd_ra_flags_reserved |= ra_options_conf->preference;
+	}
+
 	ra->nd_ra_reachable = htonl(ra_options_conf->reachable_time);
 	ra->nd_ra_retransmit = htonl(ra_options_conf->retrans_timer);
 	p += sizeof(*ra);

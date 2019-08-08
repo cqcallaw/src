@@ -32,6 +32,7 @@
 #include <net/if.h>
 
 #include <arpa/inet.h>
+#include <netinet/icmp6.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -117,10 +118,12 @@ typedef struct {
 %token	CONFIGURATION OTHER LIFETIME REACHABLE TIME RETRANS TIMER
 %token	AUTO PREFIX VALID PREFERRED LIFETIME ONLINK AUTONOMOUS
 %token	ADDRESS_CONFIGURATION DNS NAMESERVER SEARCH MTU
+%token	PREFERENCE LOW MEDIUM HIGH
 
 %token	<v.string>	STRING
 %token	<v.number>	NUMBER
 %type	<v.number>	yesno
+%type	<v.number>	preference
 %type	<v.string>	string
 
 %%
@@ -164,6 +167,11 @@ string		: string STRING	{
 
 yesno		: YES	{ $$ = 1; }
 		| NO	{ $$ = 0; }
+		;
+
+preference : LOW	{ $$ = ND_RA_FLAG_RTPREF_LOW; }
+		| MEDIUM { $$ = ND_RA_FLAG_RTPREF_MEDIUM; }
+		| HIGH { $$ = ND_RA_FLAG_RTPREF_HIGH; }
 		;
 
 varset		: STRING '=' string		{
@@ -212,6 +220,9 @@ ra_opt_block	: DEFAULT ROUTER yesno {
 		}
 		| MTU NUMBER {
 			ra_options->mtu = $2;
+		}
+		| PREFERENCE preference {
+			ra_options->preference = $2;
 		}
 		| DNS dns_block
 		;
@@ -426,16 +437,20 @@ lookup(char *s)
 		{"default",		DEFAULT},
 		{"dns",			DNS},
 		{"hop",			HOP},
+		{"high",		HIGH},
 		{"include",		INCLUDE},
 		{"interface",		RA_IFACE},
 		{"lifetime",		LIFETIME},
 		{"limit",		LIMIT},
+		{"low",			LOW},
 		{"managed",		MANAGED},
+		{"medium",		MEDIUM},
 		{"mtu",			MTU},
 		{"nameserver",		NAMESERVER},
 		{"no",			NO},
 		{"on-link",		ONLINK},
 		{"other",		OTHER},
+		{"preference",		PREFERENCE},
 		{"preferred",		PREFERRED},
 		{"prefix",		PREFIX},
 		{"reachable",		REACHABLE},

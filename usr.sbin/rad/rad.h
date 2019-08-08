@@ -92,6 +92,7 @@ struct ra_options_conf {
 	int		cur_hl;			/* current hop limit */
 	int		m_flag;			/* managed address conf flag */
 	int		o_flag;			/* other conf flag */
+	int		preference;		/* router preference (see RFC 4191 2.2) */
 	int		router_lifetime;	/* default router lifetime */
 	uint32_t	reachable_time;
 	uint32_t	retrans_timer;

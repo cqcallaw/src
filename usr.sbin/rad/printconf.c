@@ -26,6 +26,7 @@
 #include <net/if.h>
 
 #include <arpa/inet.h>
+#include <netinet/icmp6.h>
 
 #include <event.h>
 #include <imsg.h>
@@ -34,6 +35,7 @@
 #include "rad.h"
 
 const char*	yesno(int);
+const char*	preference(int);
 void		print_ra_options(const char*, const struct ra_options_conf*);
 void		print_prefix_options(const char*, const struct ra_prefix_conf*);
 
@@ -41,6 +43,20 @@ const char*
 yesno(int flag)
 {
 	return flag ? "yes" : "no";
+}
+const char*
+preference(int p)
+{
+	switch (p) {
+		case ND_RA_FLAG_RTPREF_LOW:
+			return "low";
+		case ND_RA_FLAG_RTPREF_MEDIUM:
+			return "medium";
+		case ND_RA_FLAG_RTPREF_HIGH:
+			return "high";
+		default:
+			return "invalid";
+	}
 }
 
 void
@@ -60,6 +76,9 @@ print_ra_options(const char *indent, const struct ra_options_conf *ra_options)
 	printf("%sretrans timer %u\n", indent, ra_options->retrans_timer);
 	if (ra_options->mtu > 0)
 		printf("%smtu %u\n", indent, ra_options->mtu);
+	if (ra_options->preference != ND_RA_FLAG_RTPREF_RSV)
+		printf("%spreference %s\n", indent,
+		    preference(ra_options->preference));
 
 	if (!SIMPLEQ_EMPTY(&ra_options->ra_rdnss_list) ||
 	    !SIMPLEQ_EMPTY(&ra_options->ra_dnssl_list)) {
