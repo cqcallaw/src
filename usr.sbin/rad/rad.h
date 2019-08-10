@@ -63,6 +63,7 @@ enum imsg_type {
 	IMSG_RECONF_RA_PREFIX,
 	IMSG_RECONF_RA_RDNSS,
 	IMSG_RECONF_RA_DNSSL,
+	IMSG_RECONF_RA_ROUTE,
 	IMSG_RECONF_END,
 	IMSG_ICMP6SOCK,
 	IMSG_ROUTESOCK,
@@ -86,6 +87,15 @@ struct ra_dnssl_conf {
 	char				search[MAX_SEARCH];
 };
 
+/* RFC 4191 */
+struct ra_route_conf {
+	SIMPLEQ_ENTRY(ra_route_conf)	entry;
+	struct in6_addr		prefix;	/* prefix */
+	int					prefixlen;	/* prefix length */
+	uint32_t			ltime;	/* valid lifetime */
+	int					preference;	/* router preference (see RFC 4191 2.2) */
+};
+
 /* RFC 4861 Sections 4.2 and 4.6.4 */
 struct ra_options_conf {
 	int		dfr;			/* is default router? */
@@ -102,6 +112,8 @@ struct ra_options_conf {
 	int		rdnss_count;
 	SIMPLEQ_HEAD(, ra_dnssl_conf)		 ra_dnssl_list;
 	int		dnssl_len;
+	SIMPLEQ_HEAD(, ra_route_conf)		 ra_route_list;
+	int		route_count;
 };
 
 /* RFC 4861 Section 4.6.2 */

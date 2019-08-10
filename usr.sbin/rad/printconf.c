@@ -64,7 +64,8 @@ print_ra_options(const char *indent, const struct ra_options_conf *ra_options)
 {
 	struct ra_rdnss_conf	*ra_rdnss;
 	struct ra_dnssl_conf	*ra_dnssl;
-	char			 buf[INET6_ADDRSTRLEN];
+	struct ra_route_conf	*ra_route;
+	char			 buf[INET6_ADDRSTRLEN], *bufp;
 
 	printf("%sdefault router %s\n", indent, yesno(ra_options->dfr));
 	printf("%shop limit %d\n", indent, ra_options->cur_hl);
@@ -102,6 +103,17 @@ print_ra_options(const char *indent, const struct ra_options_conf *ra_options)
 			printf("%s\t}\n", indent);
 		}
 		printf("%s}\n", indent);
+	}
+
+	if (!SIMPLEQ_EMPTY(&ra_options->ra_route_list)) {
+		SIMPLEQ_FOREACH(ra_route, &ra_options->ra_route_list, entry) {
+			bufp = inet_net_ntop(AF_INET6, &ra_route->prefix,
+				ra_route->prefixlen, buf, sizeof(buf));
+			printf("%sroute %s {\n", indent, bufp);
+			printf("%s\tpreference %s\n", indent, preference(ra_route->preference));
+			printf("%s\tlifetime %d\n", indent, ra_route->ltime);
+			printf("%s}\n", indent);
+		}
 	}
 }
 

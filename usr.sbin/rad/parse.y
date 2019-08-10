@@ -90,6 +90,8 @@ int	 symset(const char *, const char *, int);
 char	*symget(const char *);
 
 void	 clear_config(struct rad_conf *xconf);
+int	 parse_prefix(char *prefix_string, struct in6_addr *addr, int *prefixlen);
+struct ra_route_conf *get_empty_route_conf(void);
 
 static struct rad_conf		*conf;
 static struct ra_options_conf	*ra_options;
@@ -97,6 +99,7 @@ static int			 errors;
 
 static struct ra_iface_conf	*ra_iface_conf;
 static struct ra_prefix_conf	*ra_prefix_conf;
+static struct ra_route_conf	*ra_route_conf;
 
 struct ra_prefix_conf	*conf_get_ra_prefix(struct in6_addr*, int);
 struct ra_iface_conf	*conf_get_ra_iface(char *);
@@ -119,6 +122,7 @@ typedef struct {
 %token	AUTO PREFIX VALID PREFERRED LIFETIME ONLINK AUTONOMOUS
 %token	ADDRESS_CONFIGURATION DNS NAMESERVER SEARCH MTU
 %token	PREFERENCE LOW MEDIUM HIGH
+%token	ROUTE
 
 %token	<v.string>	STRING
 %token	<v.number>	NUMBER
@@ -267,25 +271,22 @@ ra_ifaceoptsl	: NO AUTO PREFIX {
 			ra_prefix_conf = NULL;
 		}
 		| PREFIX STRING {
-			struct in6_addr	 addr;
-			int		 prefixlen;
+			struct in6_addr addr;
+			int prefixlen;
 
-			memset(&addr, 0, sizeof(addr));
-			prefixlen = inet_net_pton(AF_INET6, $2, &addr,
-			    sizeof(addr));
-			if (prefixlen == -1) {
+			int parse_result = parse_prefix($2, &addr, &prefixlen);
+			if (parse_result != 0) {
 				yyerror("error parsing prefix");
 				free($2);
 				YYERROR;
 			}
-			if (prefixlen == 128 && strchr($2, '/') == NULL)
-				prefixlen = 64;
-			mask_prefix(&addr, prefixlen);
+
 			ra_prefix_conf = conf_get_ra_prefix(&addr, prefixlen);
 		} ra_prefix_block {
 			ra_prefix_conf = NULL;
 		}
 		| ra_opt_block
+		| ROUTE route_opt_block
 		;
 
 ra_prefix_block	: '{' optnl ra_prefixopts_l '}'
@@ -395,6 +396,55 @@ searchoptsl	: STRING {
 			ra_options->dnssl_len += len + 1;
 		}
 		;
+
+route_opt_block	: '{' optnl route_opts_list '}'
+		{
+			SIMPLEQ_INSERT_TAIL(&ra_options->ra_route_list, ra_route_conf, entry);
+			ra_options->route_count++;
+			// reset conf pointer
+			ra_route_conf = NULL;
+		}
+		;
+
+route_opts_list : route_option_l
+		| route_option_l route_opts_list
+		;
+
+route_option_l: route_option optnl
+		;
+
+route_option :
+		PREFIX STRING {
+			if (ra_route_conf == NULL) {
+				ra_route_conf = get_empty_route_conf();
+			}
+
+			struct in6_addr addr;
+			int prefixlen;
+
+			int parse_result = parse_prefix($2, &addr, &prefixlen);
+			if (parse_result != 0) {
+				yyerror("error parsing prefix");
+				free($2);
+				YYERROR;
+			}
+			ra_route_conf->prefix = addr;
+			ra_route_conf->prefixlen = prefixlen;
+		}
+		| PREFERENCE preference
+		{
+			if (ra_route_conf == NULL) {
+				ra_route_conf = get_empty_route_conf();
+			}
+			ra_route_conf->preference = $2;
+		}
+		| LIFETIME NUMBER {
+			if (ra_route_conf == NULL) {
+				ra_route_conf = get_empty_route_conf();
+			}
+			ra_route_conf->ltime = $2;
+		}
+		;
 %%
 
 struct keywords {
@@ -455,6 +505,7 @@ lookup(char *s)
 		{"prefix",		PREFIX},
 		{"reachable",		REACHABLE},
 		{"retrans",		RETRANS},
+		{"route",		ROUTE},
 		{"router",		ROUTER},
 		{"search",		SEARCH},
 		{"time",		TIME},
@@ -1019,6 +1070,8 @@ conf_get_ra_iface(char *name)
 	iface->ra_options.rdnss_count = 0;
 	SIMPLEQ_INIT(&iface->ra_options.ra_dnssl_list);
 	iface->ra_options.dnssl_len = 0;
+	SIMPLEQ_INIT(&iface->ra_options.ra_route_list);
+	iface->ra_options.route_count = 0;
 
 	SIMPLEQ_INSERT_TAIL(&conf->ra_iface_list, iface, entry);
 
@@ -1038,4 +1091,36 @@ clear_config(struct rad_conf *xconf)
 	}
 
 	free(xconf);
+}
+
+int
+parse_prefix(char *prefix_string, struct in6_addr *addr, int *prefixlen)
+{
+	memset(addr, 0, sizeof(*addr));
+	*prefixlen = inet_net_pton(AF_INET6, prefix_string, addr,
+		sizeof(*addr));
+	if (*prefixlen == -1) {
+		return -1;
+	}
+	if (*prefixlen == 128 && strchr(prefix_string, '/') == NULL)
+		*prefixlen = 64;
+	mask_prefix(addr, *prefixlen);
+
+	return 0;
+}
+
+struct ra_route_conf*
+get_empty_route_conf(void)
+{
+	struct ra_route_conf	*instance;
+	instance = calloc(1, sizeof(*ra_route_conf));
+	if (instance == NULL)
+		err(1, "%s", __func__);
+
+	instance->prefix = in6addr_any;
+	instance->prefixlen = 0;
+	instance->preference = ND_RA_FLAG_RTPREF_MEDIUM;
+	instance->ltime = 1800;
+
+	return instance;
 }

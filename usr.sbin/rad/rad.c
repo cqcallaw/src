@@ -592,6 +592,7 @@ main_imsg_send_config(struct rad_conf *xconf)
 	struct ra_prefix_conf	*ra_prefix_conf;
 	struct ra_rdnss_conf	*ra_rdnss_conf;
 	struct ra_dnssl_conf	*ra_dnssl_conf;
+	struct ra_route_conf	*ra_route_conf;
 
 	/* Send fixed part of config to children. */
 	if (main_sendboth(IMSG_RECONF_CONF, xconf, sizeof(*xconf)) == -1)
@@ -638,6 +639,12 @@ main_imsg_send_config(struct rad_conf *xconf)
 		    &ra_iface_conf->ra_options.ra_dnssl_list, entry) {
 			if (main_sendboth(IMSG_RECONF_RA_DNSSL, ra_dnssl_conf,
 			    sizeof(*ra_dnssl_conf)) == -1)
+				return (-1);
+		}
+		SIMPLEQ_FOREACH(ra_route_conf,
+		    &ra_iface_conf->ra_options.ra_route_list, entry) {
+			if (main_sendboth(IMSG_RECONF_RA_ROUTE, ra_route_conf,
+			    sizeof(*ra_route_conf)) == -1)
 				return (-1);
 		}
 	}
@@ -705,6 +712,7 @@ merge_config(struct rad_conf *conf, struct rad_conf *xconf)
 	struct ra_iface_conf	*ra_iface_conf;
 	struct ra_rdnss_conf	*ra_rdnss;
 	struct ra_dnssl_conf	*ra_dnssl;
+	struct ra_route_conf	*ra_route;
 
 	/* Remove & discard existing interfaces. */
 	while ((ra_iface_conf = SIMPLEQ_FIRST(&conf->ra_iface_list)) != NULL) {
@@ -736,6 +744,12 @@ merge_config(struct rad_conf *conf, struct rad_conf *xconf)
 		SIMPLEQ_INSERT_TAIL(&conf->ra_options.ra_dnssl_list, ra_dnssl,
 		    entry);
 	}
+	while ((ra_route = SIMPLEQ_FIRST(&xconf->ra_options.ra_route_list))
+	    != NULL) {
+		SIMPLEQ_REMOVE_HEAD(&xconf->ra_options.ra_route_list, entry);
+		SIMPLEQ_INSERT_TAIL(&conf->ra_options.ra_route_list, ra_route,
+		    entry);
+	}
 	free(xconf);
 }
 
@@ -762,6 +776,7 @@ config_new_empty(void)
 	xconf->ra_options.rdns_lifetime = DEFAULT_RDNS_LIFETIME;
 	SIMPLEQ_INIT(&xconf->ra_options.ra_rdnss_list);
 	SIMPLEQ_INIT(&xconf->ra_options.ra_dnssl_list);
+	SIMPLEQ_INIT(&xconf->ra_options.ra_route_list);
 
 	return (xconf);
 }
